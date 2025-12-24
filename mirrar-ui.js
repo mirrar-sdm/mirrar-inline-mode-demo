@@ -379,12 +379,62 @@
         }
 
         let isNewWebarScriptDownloading, newWebARScriptLoaded
+        
+        /**
+         * Ensure container has proper dimensions for WebGL/DeepAR rendering
+         * @param {HTMLElement} container - The container element
+         * @param {Object} options - Options object from initMirrarUI
+         * @returns {Object} - { width, height } final dimensions
+         */
+        function ensureContainerHasDimensions(container, options) {
+            const computed = window.getComputedStyle(container);
+            const rect = container.getBoundingClientRect();
+            
+            // Check if container has explicit dimensions
+            const hasWidth = rect.width > 0 && computed.width !== 'auto';
+            const hasHeight = rect.height > 0 && computed.height !== 'auto';
+            
+            let width = rect.width || container.offsetWidth;
+            let height = rect.height || container.offsetHeight;
+            
+            // Smart width default
+            if (!hasWidth || width === 0) {
+                width = container.parentElement?.offsetWidth || 400;
+                console.log('[Mirrar] Auto-detected container width:', width);
+            }
+            
+            // Smart height default - maintain 4:3 aspect ratio or use reasonable viewport percentage
+            if (!hasHeight || height === 0) {
+                const defaultHeight = Math.min(
+                    width * 0.75, // 4:3 aspect ratio
+                    window.innerHeight * 0.7, // Max 70% of viewport
+                    600 // Hard max
+                );
+                container.style.minHeight = defaultHeight + 'px';
+                height = defaultHeight;
+                console.log('[Mirrar] Auto-applied container height:', height);
+            }
+            
+            // Ensure position context for absolute children (like loading overlays)
+            if (computed.position === 'static') {
+                container.style.position = 'relative';
+            }
+            
+            // Ensure overflow is handled
+            container.style.overflow = 'hidden';
+            
+            return { width: Math.round(width), height: Math.round(height) };
+        }
+        
         function newWebARInitMirrarUI(sku, options) {
-            console.log("Initializing new UI")
+            console.log("[Mirrar] Initializing new UI")
             let brandID = brandIdFromQueryParams || options.brandId
             let category = ''
             let productType = ''
-            let port = 3001
+            let port = 3000
+            
+            // Check for inline mode
+            const isInline = options.mode === 'inline';
 
             let additionalSearchParams = new URLSearchParams();
             if (options.productData) {
@@ -394,6 +444,28 @@
                         additionalSearchParams.append(category, categoryItems.join(","));
                     }
                 });
+            }
+            
+            // Handle inline mode container setup
+            if (isInline) {
+                // Get container - support both ID string and element reference
+                const container = typeof options.containerId === 'string' 
+                    ? document.getElementById(options.containerId)
+                    : (options.container || null);
+                
+                if (!container) {
+                    console.error('[Mirrar] Container not found:', options.containerId || 'No container specified');
+                    return;
+                }
+                
+                // Auto-inject dimensions and styles if needed
+                const dimensions = ensureContainerHasDimensions(container, options);
+                console.log('[Mirrar] Inline container dimensions:', dimensions);
+                
+                // Add inline-specific params
+                additionalSearchParams.append('mode', 'inline');
+                additionalSearchParams.append('containerWidth', dimensions.width);
+                additionalSearchParams.append('containerHeight', dimensions.height);
             }
 
             // Add all fields from options to additional search params

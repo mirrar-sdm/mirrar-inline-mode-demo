@@ -40,19 +40,11 @@ const MIRRAR_CONFIG = {
 const elements = {
     // Gallery elements
     productView: document.getElementById('product-view'),
-    cameraView: document.getElementById('camera-view'),
     mainProductImage: document.getElementById('main-product-image'),
     mirrarContainer: document.getElementById('mirrar-tryon-content'),
     
-    // Loading/Error states (for inline mode UI feedback)
-    loadingOverlay: document.getElementById('loading-overlay'),
-    errorOverlay: document.getElementById('error-overlay'),
-    errorMessage: document.getElementById('error-message'),
-    activeIndicator: document.getElementById('active-indicator'),
-    
     // Buttons
     tryonBtn: document.getElementById('tryon-btn'),
-    closeTryonBtn: document.getElementById('close-tryon-btn'),
     
     // Other UI elements
     thumbnails: document.querySelectorAll('.thumbnail:not(.tryon-btn)'),
@@ -120,23 +112,18 @@ function startTryOn() {
     console.log('[Try-On] Calling initMirrarUI with:', { sku, options });
     
     if (MIRRAR_CONFIG.mode === 'inline') {
-        // For inline mode: Update UI to show camera view
+        // For inline mode: Hide product image, show container
         elements.productView.style.display = 'none';
-        elements.cameraView.classList.remove('hidden');
+        elements.mirrarContainer.classList.remove('hidden');
         elements.tryonBtn.classList.add('active');
         elements.thumbnails.forEach(thumb => thumb.classList.remove('active'));
-        
-        // Show loading state
-        showLoading();
     }
     
     // Call the standard Mirrar API
-    // initMirrarUI is globally available from mirrar-ui.js
     if (typeof initMirrarUI === 'function') {
         initMirrarUI(sku, options);
     } else {
         console.error('[Try-On] initMirrarUI not found. Make sure mirrar-ui.js is loaded.');
-        showError('Failed to initialize try-on. SDK not loaded.');
     }
 }
 
@@ -153,18 +140,13 @@ function stopTryOn() {
     if (MIRRAR_CONFIG.mode === 'inline') {
         // Update UI to show product view
         elements.productView.style.display = 'block';
-        elements.cameraView.classList.add('hidden');
+        elements.mirrarContainer.classList.add('hidden');
         elements.tryonBtn.classList.remove('active');
         
         // Restore active thumbnail
         elements.thumbnails[state.selectedImageIndex]?.classList.add('active');
         
-        // Hide indicators
-        hideLoading();
-        hideActiveIndicator();
-        
-        // Clear the container (mirrar-webar-integration.js should handle cleanup)
-        // But we ensure the container is cleared for UI consistency
+        // Clear the container
         if (elements.mirrarContainer) {
             elements.mirrarContainer.innerHTML = '';
         }
