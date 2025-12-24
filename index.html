@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mirrar Virtual Try-On Demo</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Mirrar WebAR SDK -->
+    <script src="mirrar-ui.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container header-content">
+            <div class="logo">
+                <span class="logo-icon">👓</span>
+                <span class="logo-text">EyeWear Studio</span>
+            </div>
+            <nav class="nav">
+                <a href="#" class="nav-link">Home</a>
+                <a href="#" class="nav-link">Products</a>
+                <a href="#" class="nav-link">About</a>
+                <a href="#" class="nav-link">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Breadcrumb -->
+    <div class="container">
+        <nav class="breadcrumb">
+            <a href="#">Home</a>
+            <span>/</span>
+            <a href="#">Sunglasses</a>
+            <span>/</span>
+            <span class="current">Oakley Holbrook</span>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container">
+        <div class="product-layout">
+            <!-- Product Gallery Section -->
+            <div class="gallery-section">
+                <!-- Main Image / Camera View -->
+                <div class="main-image-container" id="main-view-container">
+                    <!-- Product Image (shown when try-on is not active) -->
+                    <div class="product-view" id="product-view">
+                        <img src="https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=600&h=600&fit=crop" 
+                             alt="Oakley Sunglasses" 
+                             id="main-product-image"
+                             class="main-image">
+                        <button class="zoom-btn" id="zoom-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="M21 21l-4.35-4.35"></path>
+                                <path d="M11 8v6M8 11h6"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Camera View (shown when try-on is active) -->
+                    <div class="camera-view hidden" id="camera-view">
+                        <!-- Header with close button -->
+                        <div class="camera-header">
+                            <div class="camera-title">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                    <circle cx="12" cy="13" r="4"></circle>
+                                </svg>
+                                <span>Virtual Try-On</span>
+                            </div>
+                            <button class="close-btn" id="close-tryon-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 6L6 18M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Mirrar Content Container -->
+                        <div class="mirrar-container" id="mirrar-tryon-content"></div>
+
+                        <!-- Loading State -->
+                        <div class="loading-overlay" id="loading-overlay">
+                            <div class="loader"></div>
+                            <span>Starting virtual try-on...</span>
+                        </div>
+
+                        <!-- Error State -->
+                        <div class="error-overlay hidden" id="error-overlay">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                <circle cx="12" cy="13" r="4"></circle>
+                            </svg>
+                            <p id="error-message">Failed to initialize virtual try-on.</p>
+                        </div>
+
+                        <!-- Active Indicator -->
+                        <div class="active-indicator hidden" id="active-indicator">
+                            <span>Virtual Try-On Active</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thumbnails -->
+                <div class="thumbnails">
+                    <button class="thumbnail active" data-index="0">
+                        <img src="https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=150&h=150&fit=crop" alt="View 1">
+                    </button>
+                    <button class="thumbnail" data-index="1">
+                        <img src="https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=150&h=150&fit=crop" alt="View 2">
+                    </button>
+                    <button class="thumbnail" data-index="2">
+                        <img src="https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=150&h=150&fit=crop" alt="View 3">
+                    </button>
+                    <button class="thumbnail tryon-btn" id="tryon-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                        <span>Try On</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Product Info Section -->
+            <div class="product-info">
+                <div class="product-badge">New Arrival</div>
+                <h1 class="product-title">Oakley Holbrook™</h1>
+                <p class="product-subtitle">Matte Black / Prizm Grey</p>
+                
+                <div class="rating">
+                    <div class="stars">
+                        <span class="star filled">★</span>
+                        <span class="star filled">★</span>
+                        <span class="star filled">★</span>
+                        <span class="star filled">★</span>
+                        <span class="star">★</span>
+                    </div>
+                    <span class="rating-text">4.8 (234 reviews)</span>
+                </div>
+
+                <div class="price-section">
+                    <span class="current-price">$166.00</span>
+                    <span class="original-price">$186.00</span>
+                    <span class="discount">11% OFF</span>
+                </div>
+
+                <div class="color-section">
+                    <h3 class="section-title">Color</h3>
+                    <div class="color-options">
+                        <button class="color-option active" style="background-color: #1a1a1a;" title="Matte Black"></button>
+                        <button class="color-option" style="background-color: #4a3728;" title="Tortoise"></button>
+                        <button class="color-option" style="background-color: #0066cc;" title="Blue"></button>
+                        <button class="color-option" style="background-color: #cc0000;" title="Red"></button>
+                    </div>
+                </div>
+
+                <div class="features-section">
+                    <h3 class="section-title">Key Features</h3>
+                    <ul class="features-list">
+                        <li>Prizm™ lens technology for enhanced color and contrast</li>
+                        <li>O Matter™ frame material for durability and comfort</li>
+                        <li>Three-Point Fit for precise optical alignment</li>
+                        <li>100% UV protection</li>
+                    </ul>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="add-to-cart-btn">Add to Cart</button>
+                    <button class="btn btn-secondary" id="wishlist-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="delivery-info">
+                    <div class="delivery-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="1" y="3" width="15" height="13"></rect>
+                            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                            <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                            <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                        </svg>
+                        <span>Free shipping on orders over $100</span>
+                    </div>
+                    <div class="delivery-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <span>Delivery in 3-5 business days</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 EyeWear Studio. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- App Script -->
+    <script src="app.js"></script>
+</body>
+</html>
