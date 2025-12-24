@@ -1,43 +1,60 @@
 /**
  * Mirrar Virtual Try-On Integration
- * Simple HTML/CSS/JavaScript Implementation
+ * Standard API Implementation using mirrar-ui.js
+ * 
+ * Supports both:
+ * - Popup Mode (default): Full-screen overlay
+ * - Inline Mode: Embedded in a container element
  */
 
 // ========================================
 // MIRRAR CONFIGURATION
 // ========================================
-// Update these values with your actual Mirrar credentials
 const MIRRAR_CONFIG = {
-    brandId: 'd254a928-3f20-4ba1-ac08-328a68d2d2d2',        // Your Mirrar Brand ID
-    sku: '3525348',              // Product SKU
-    category: 'sunglasses',          // Product category
+    // Required: Your Mirrar Brand ID
+    brandId: 'd254a928-3f20-4ba1-ac08-328a68d2d2d2',
+    
+    // Required: Product SKU for try-on
+    sku: '3525348',
+    
+    // Mode: 'popup' (default) or 'inline'
+    // - 'popup': Opens full-screen overlay (handled entirely by mirrar-ui.js)
+    // - 'inline': Renders inside containerId element
+    mode: 'inline',
+    
+    // Required for inline mode: Container element ID
+    containerId: 'mirrar-tryon-content',
+    
+    // Optional: Product data for filtering inventory
     productData: {
         "Sunglasses": {
-            items: ['3525348'],   // Array of SKUs
+            items: ['3525348'],
             type: 'face'
         }
     }
 };
 
-// Host URL - change for production
-const MIRRAR_HOST = window.location.href.includes('localhost') 
-    ? 'http://localhost:3000/' 
-    : 'https://cdn.mirrar.com/mirrar-jewellery-webar-new/';
-
 // ========================================
 // DOM ELEMENTS
 // ========================================
 const elements = {
+    // Gallery elements
     productView: document.getElementById('product-view'),
     cameraView: document.getElementById('camera-view'),
     mainProductImage: document.getElementById('main-product-image'),
     mirrarContainer: document.getElementById('mirrar-tryon-content'),
+    
+    // Loading/Error states (for inline mode UI feedback)
     loadingOverlay: document.getElementById('loading-overlay'),
     errorOverlay: document.getElementById('error-overlay'),
     errorMessage: document.getElementById('error-message'),
     activeIndicator: document.getElementById('active-indicator'),
+    
+    // Buttons
     tryonBtn: document.getElementById('tryon-btn'),
     closeTryonBtn: document.getElementById('close-tryon-btn'),
+    
+    // Other UI elements
     thumbnails: document.querySelectorAll('.thumbnail:not(.tryon-btn)'),
     colorOptions: document.querySelectorAll('.color-option'),
     addToCartBtn: document.getElementById('add-to-cart-btn'),
@@ -56,154 +73,103 @@ const productImages = [
 // ========================================
 let state = {
     isTryOnActive: false,
-    selectedImageIndex: 0,
-    mirrarIframe: null
+    selectedImageIndex: 0
 };
 
 // ========================================
-// MIRRAR INLINE MODE FUNCTIONS
+// MIRRAR TRY-ON FUNCTIONS
 // ========================================
 
 /**
- * Initialize Mirrar inline mode
- * Creates and configures the iframe for virtual try-on
+ * Build options object for initMirrarUI
+ * @returns {Object} Options object with all required parameters
  */
-function initMirrarInline() {
-    try {
-        const container = elements.mirrarContainer;
-        
-        if (!container) {
-            showError("Container not found.");
-            return;
-        }
-
-        console.log('[Try-On] Starting inline mode initialization');
-        
-        // Clear container
-        container.innerHTML = '';
-        
-        // Show loading
-        showLoading();
-        
-        // Create iframe element
-        const iframe = document.createElement('iframe');
-        iframe.id = 'mirrar-inline-iframe';
-        iframe.allow = 'camera;autoplay;microphone;clipboard-read;clipboard-write';
-        iframe.style.cssText = `
-            width: 100%;
-            height: 100%;
-            border: none;
-            position: absolute;
-            top: 0;
-            left: 0;
-            display: block;
-        `;
-        
-        // Build URL with all required parameters for inline mode
-        const params = new URLSearchParams({
-            brand_id: MIRRAR_CONFIG.brandId,
-            sku: MIRRAR_CONFIG.sku,
-            category: MIRRAR_CONFIG.category,
-            mode: 'inline',
-            fullScreen: 'true',
-            lang: 'en'
-        });
-        
-        // Add product data if available
-        if (MIRRAR_CONFIG.productData) {
-            Object.keys(MIRRAR_CONFIG.productData).forEach(category => {
-                const categoryData = MIRRAR_CONFIG.productData[category];
-                if (categoryData.items && categoryData.items.length > 0) {
-                    params.append(category, categoryData.items.join(','));
-                }
-            });
-        }
-        
-        iframe.src = `${MIRRAR_HOST}index.html?${params.toString()}`;
-        
-        console.log('[Try-On] Loading iframe:', iframe.src);
-        
-        // Handle iframe load
-        iframe.onload = () => {
-            console.log('[Try-On] Iframe loaded successfully');
-            hideLoading();
-            showActiveIndicator();
-            
-            // Send resize message to ensure proper canvas sizing
-            if (iframe.contentWindow && container) {
-                setTimeout(() => {
-                    iframe.contentWindow.postMessage({
-                        type: 'resize',
-                        width: container.offsetWidth,
-                        height: container.offsetHeight,
-                        fullScreen: true
-                    }, '*');
-                }, 1000);
-            }
-        };
-        
-        // Handle iframe error
-        iframe.onerror = () => {
-            console.error('[Try-On] Failed to load iframe');
-            showError('Failed to load virtual try-on. Please try again.');
-        };
-        
-        // Append iframe to container
-        container.appendChild(iframe);
-        state.mirrarIframe = iframe;
-        
-        // Timeout fallback to hide loading
-        setTimeout(() => {
-            hideLoading();
-        }, 5000);
-        
-    } catch (err) {
-        console.error('[Try-On] Error initializing inline mode:', err);
-        showError("Failed to initialize virtual try-on.");
+function buildMirrarOptions() {
+    const options = {
+        brandId: MIRRAR_CONFIG.brandId
+    };
+    
+    // Add mode if inline
+    if (MIRRAR_CONFIG.mode === 'inline') {
+        options.mode = 'inline';
+        options.containerId = MIRRAR_CONFIG.containerId;
     }
+    
+    // Add product data if available
+    if (MIRRAR_CONFIG.productData) {
+        options.productData = MIRRAR_CONFIG.productData;
+    }
+    
+    return options;
 }
 
 /**
- * Start virtual try-on
+ * Start virtual try-on using standard initMirrarUI API
+ * This follows Option 1 from mirrAR Web Documentation
  */
 function startTryOn() {
+    console.log('[Try-On] Starting virtual try-on');
+    console.log('[Try-On] Mode:', MIRRAR_CONFIG.mode);
+    
     state.isTryOnActive = true;
     
-    // Update UI
-    elements.productView.style.display = 'none';
-    elements.cameraView.classList.remove('hidden');
-    elements.tryonBtn.classList.add('active');
+    // Build options following standard API
+    const options = buildMirrarOptions();
+    const sku = MIRRAR_CONFIG.sku;
     
-    // Remove active class from image thumbnails
-    elements.thumbnails.forEach(thumb => thumb.classList.remove('active'));
+    console.log('[Try-On] Calling initMirrarUI with:', { sku, options });
     
-    // Initialize Mirrar
-    initMirrarInline();
+    if (MIRRAR_CONFIG.mode === 'inline') {
+        // For inline mode: Update UI to show camera view
+        elements.productView.style.display = 'none';
+        elements.cameraView.classList.remove('hidden');
+        elements.tryonBtn.classList.add('active');
+        elements.thumbnails.forEach(thumb => thumb.classList.remove('active'));
+        
+        // Show loading state
+        showLoading();
+    }
+    
+    // Call the standard Mirrar API
+    // initMirrarUI is globally available from mirrar-ui.js
+    if (typeof initMirrarUI === 'function') {
+        initMirrarUI(sku, options);
+    } else {
+        console.error('[Try-On] initMirrarUI not found. Make sure mirrar-ui.js is loaded.');
+        showError('Failed to initialize try-on. SDK not loaded.');
+    }
 }
 
 /**
  * Stop virtual try-on
+ * For popup mode: mirrar-ui.js handles closing via closeMirrar message
+ * For inline mode: We need to clean up the container
  */
 function stopTryOn() {
+    console.log('[Try-On] Stopping virtual try-on');
+    
     state.isTryOnActive = false;
     
-    // Update UI
-    elements.productView.style.display = 'block';
-    elements.cameraView.classList.add('hidden');
-    elements.tryonBtn.classList.remove('active');
-    
-    // Restore active thumbnail
-    elements.thumbnails[state.selectedImageIndex].classList.add('active');
-    
-    // Clean up
-    hideActiveIndicator();
-    
-    // Remove iframe
-    if (state.mirrarIframe) {
-        state.mirrarIframe.remove();
-        state.mirrarIframe = null;
+    if (MIRRAR_CONFIG.mode === 'inline') {
+        // Update UI to show product view
+        elements.productView.style.display = 'block';
+        elements.cameraView.classList.add('hidden');
+        elements.tryonBtn.classList.remove('active');
+        
+        // Restore active thumbnail
+        elements.thumbnails[state.selectedImageIndex]?.classList.add('active');
+        
+        // Hide indicators
+        hideLoading();
+        hideActiveIndicator();
+        
+        // Clear the container (mirrar-webar-integration.js should handle cleanup)
+        // But we ensure the container is cleared for UI consistency
+        if (elements.mirrarContainer) {
+            elements.mirrarContainer.innerHTML = '';
+        }
     }
-    elements.mirrarContainer.innerHTML = '';
+    // For popup mode, mirrar-ui.js handles everything via closeMirrar
 }
 
 // ========================================
@@ -211,52 +177,69 @@ function stopTryOn() {
 // ========================================
 
 function showLoading() {
-    elements.loadingOverlay.classList.remove('hidden');
-    elements.errorOverlay.classList.add('hidden');
-    elements.activeIndicator.classList.add('hidden');
+    if (elements.loadingOverlay) {
+        elements.loadingOverlay.classList.remove('hidden');
+    }
+    if (elements.errorOverlay) {
+        elements.errorOverlay.classList.add('hidden');
+    }
+    if (elements.activeIndicator) {
+        elements.activeIndicator.classList.add('hidden');
+    }
 }
 
 function hideLoading() {
-    elements.loadingOverlay.classList.add('hidden');
+    if (elements.loadingOverlay) {
+        elements.loadingOverlay.classList.add('hidden');
+    }
 }
 
 function showError(message) {
-    elements.loadingOverlay.classList.add('hidden');
-    elements.errorMessage.textContent = message;
-    elements.errorOverlay.classList.remove('hidden');
+    hideLoading();
+    if (elements.errorMessage) {
+        elements.errorMessage.textContent = message;
+    }
+    if (elements.errorOverlay) {
+        elements.errorOverlay.classList.remove('hidden');
+    }
 }
 
 function showActiveIndicator() {
-    elements.activeIndicator.classList.remove('hidden');
+    if (elements.activeIndicator) {
+        elements.activeIndicator.classList.remove('hidden');
+    }
 }
 
 function hideActiveIndicator() {
-    elements.activeIndicator.classList.add('hidden');
+    if (elements.activeIndicator) {
+        elements.activeIndicator.classList.add('hidden');
+    }
 }
 
 /**
- * Select a product image
+ * Select a product image from gallery
  * @param {number} index - Image index to select
  */
 function selectImage(index) {
     state.selectedImageIndex = index;
     
     // Update main image
-    elements.mainProductImage.src = productImages[index];
-    elements.mainProductImage.classList.add('animate-fade-in');
-    
-    // Remove animation class after it completes
-    setTimeout(() => {
-        elements.mainProductImage.classList.remove('animate-fade-in');
-    }, 300);
+    if (elements.mainProductImage) {
+        elements.mainProductImage.src = productImages[index];
+        elements.mainProductImage.classList.add('animate-fade-in');
+        
+        setTimeout(() => {
+            elements.mainProductImage.classList.remove('animate-fade-in');
+        }, 300);
+    }
     
     // Update thumbnails
     elements.thumbnails.forEach((thumb, i) => {
         thumb.classList.toggle('active', i === index);
     });
     
-    // If try-on is active, stop it
-    if (state.isTryOnActive) {
+    // If try-on is active in inline mode, stop it
+    if (state.isTryOnActive && MIRRAR_CONFIG.mode === 'inline') {
         stopTryOn();
     }
 }
@@ -276,34 +259,63 @@ function selectColor(selectedOption) {
 // EVENT LISTENERS
 // ========================================
 
-// Listen for messages from Mirrar iframe
+/**
+ * Listen for messages from Mirrar iframe/integration
+ * Handles events like closeMirrar, makeMirrarVisible, etc.
+ */
 window.addEventListener('message', (event) => {
     if (event.data && event.data.origin === 'mirrar') {
         console.log('[Try-On] Message from Mirrar:', event.data);
         
         switch (event.data.function) {
             case 'closeMirrar':
+                // Mirrar closed (user clicked close or popup dismissed)
                 stopTryOn();
                 break;
+                
             case 'makeMirrarVisible':
+                // Mirrar is ready and visible
+                hideLoading();
+                showActiveIndicator();
+                break;
+            
+            case 'enableInlineMode':
+                // Inline mode is enabled and ready
+                console.log('[Try-On] Inline mode enabled with settings:', event.data.settings);
+                hideLoading();
+                showActiveIndicator();
+                break;
+                
+            case 'mirrar-loaded':
+                // Mirrar finished loading
+                console.log('[Try-On] Mirrar loaded');
                 hideLoading();
                 showActiveIndicator();
                 break;
         }
     }
-});
-
-// Try-On button click
-elements.tryonBtn.addEventListener('click', () => {
-    if (state.isTryOnActive) {
-        stopTryOn();
-    } else {
-        startTryOn();
+    
+    // Also handle events from CDN origin
+    if (event.origin === 'https://cdn.mirrar.com') {
+        console.log('[Try-On] Event from Mirrar CDN:', event.data);
     }
 });
 
-// Close try-on button click
-elements.closeTryonBtn.addEventListener('click', stopTryOn);
+// Try-On button click
+if (elements.tryonBtn) {
+    elements.tryonBtn.addEventListener('click', () => {
+        if (state.isTryOnActive) {
+            stopTryOn();
+        } else {
+            startTryOn();
+        }
+    });
+}
+
+// Close try-on button click (for inline mode)
+if (elements.closeTryonBtn) {
+    elements.closeTryonBtn.addEventListener('click', stopTryOn);
+}
 
 // Thumbnail clicks
 elements.thumbnails.forEach((thumb, index) => {
@@ -316,36 +328,36 @@ elements.colorOptions.forEach(option => {
 });
 
 // Add to cart button
-elements.addToCartBtn.addEventListener('click', () => {
-    alert('Product added to cart!');
-});
+if (elements.addToCartBtn) {
+    elements.addToCartBtn.addEventListener('click', () => {
+        alert('Product added to cart!');
+    });
+}
 
 // Wishlist button
-elements.wishlistBtn.addEventListener('click', () => {
-    elements.wishlistBtn.classList.toggle('active');
-    alert('Product added to wishlist!');
-});
-
-// Handle window resize when try-on is active
-window.addEventListener('resize', () => {
-    if (state.isTryOnActive && state.mirrarIframe && state.mirrarIframe.contentWindow) {
-        const container = elements.mirrarContainer;
-        state.mirrarIframe.contentWindow.postMessage({
-            type: 'resize',
-            width: container.offsetWidth,
-            height: container.offsetHeight,
-            fullScreen: true
-        }, '*');
-    }
-});
+if (elements.wishlistBtn) {
+    elements.wishlistBtn.addEventListener('click', () => {
+        elements.wishlistBtn.classList.toggle('active');
+        alert('Product added to wishlist!');
+    });
+}
 
 // ========================================
 // INITIALIZATION
 // ========================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[App] Mirrar Inline Demo initialized');
+    console.log('[App] Mirrar Virtual Try-On Demo initialized');
+    console.log('[App] Using standard initMirrarUI API');
     console.log('[App] Configuration:', MIRRAR_CONFIG);
+    console.log('[App] Mode:', MIRRAR_CONFIG.mode);
+    
+    // Verify mirrar-ui.js is loaded
+    if (typeof initMirrarUI === 'function') {
+        console.log('[App] ✓ mirrar-ui.js loaded successfully');
+    } else {
+        console.warn('[App] ✗ initMirrarUI not found - mirrar-ui.js may not be loaded');
+    }
     
     // Set initial active thumbnail
     if (elements.thumbnails.length > 0) {

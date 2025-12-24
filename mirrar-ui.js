@@ -418,7 +418,7 @@
                             resolve(true)
                         }
 
-                        script.src = window.location.href.includes('localhost') ? `http://localhost:${port}/mirrar-webar-integration.js` : "https://cdn.mirrar.com/mirrar-jewellery-webar-new/mirrar-webar-integration.js"
+                        script.src = window.location.href.includes('localhost') ? `http://localhost:${port}/mirrar-webar-integration.js` : "https://cdn.mirrar.com/mirrar-jewellery-webar-deepar-i18n-integrations/mirrar-webar-integration.js"
 
                         document.body.append(script)
                         isNewWebarScriptDownloading = true
@@ -436,6 +436,13 @@
         }
 
         function initMirrarUI(sku, options, preloadParam = '') {
+            // Inline mode is only supported in New WebAR - skip version check
+            if (options && options.mode === 'inline') {
+                newWebARInitMirrarUI(sku, options)
+                return
+            }
+            
+            // Default popup behavior - check version and route accordingly
             checkForWebarVersion(options).then(newVersion => {
                 if (newVersion) {
                     newWebARInitMirrarUI(sku, options)
