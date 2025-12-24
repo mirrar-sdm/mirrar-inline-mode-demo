@@ -381,7 +381,7 @@
         let isNewWebarScriptDownloading, newWebARScriptLoaded
         
         /**
-         * Ensure container has proper dimensions for WebGL/DeepAR rendering
+         * Ensure container has proper dimensions for WebGL rendering
          * @param {HTMLElement} container - The container element
          * @param {Object} options - Options object from initMirrarUI
          * @returns {Object} - { width, height } final dimensions
@@ -490,7 +490,7 @@
                             resolve(true)
                         }
 
-                        script.src = window.location.href.includes('localhost') ? `http://localhost:${port}/mirrar-webar-integration.js` : "https://cdn.mirrar.com/mirrar-jewellery-webar-deepar-i18n-integrations/mirrar-webar-integration.js"
+                        script.src = window.location.href.includes('localhost') ? `http://localhost:${port}/mirrar-webar-integration.js` : "https://cdn.mirrar.com/mirrar-jewellery-webar-new/mirrar-webar-integration.js"
 
                         document.body.append(script)
                         isNewWebarScriptDownloading = true
